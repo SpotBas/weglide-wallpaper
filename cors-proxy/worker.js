@@ -18,10 +18,14 @@ export default {
     const forwardHeaders = new Headers();
     const apiKey = request.headers.get("X-API-Key");
     if (apiKey) forwardHeaders.set("X-API-Key", apiKey);
-    // Bunny CDN (en mogelijk de API) passen referrer/hotlink-bescherming toe
-    // die alleen requests met een Referer/Origin van de WeGlide-site zelf
-    // doorlaat. Deze proxy staat in voor die site, dus stuurt dezelfde
-    // headers mee.
+    // Cloudflare Workers sturen standaard geen "gewone" browser User-Agent
+    // mee; basale bot-mitigatie op de CDN blokkeert dat kennelijk (het
+    // bestand zelf bleek gewoon publiek toegankelijk in een echte browser).
+    // Referer/Origin kunnen geen kwaad, dus die blijven ook staan.
+    forwardHeaders.set(
+      "User-Agent",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    );
     forwardHeaders.set("Referer", "https://www.weglide.org/");
     forwardHeaders.set("Origin", "https://www.weglide.org");
 
