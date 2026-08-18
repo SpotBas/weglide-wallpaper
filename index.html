@@ -197,8 +197,13 @@
 (function () {
   "use strict";
 
-  const CDN_PREFIX = "https://weglidefiles.b-cdn.net/";
-  const API_BASE = "https://api.weglide.org/v1";
+  // api.weglide.org en de CDN sturen geen CORS-headers mee, dus browsers
+  // blokkeren directe fetch()-calls vanaf een github.io-origin. Deze Worker
+  // proxyt alleen naar api.weglide.org en weglidefiles.b-cdn.net (zie
+  // cors-proxy/worker.js) en voegt de benodigde CORS-headers toe.
+  const PROXY_BASE = "https://weglide-proxy.basslijkhuis.workers.dev";
+  const CDN_PREFIX = `${PROXY_BASE}/cdn/`;
+  const API_BASE = `${PROXY_BASE}/api/v1`;
 
   const apiKeyInput = document.getElementById("apiKey");
   const flightInput = document.getElementById("flightInput");
@@ -228,7 +233,12 @@
 
   function resolveCdnUrl(path) {
     if (!path) return null;
-    return /^https?:\/\//i.test(path) ? path : CDN_PREFIX + path;
+    // Absolute CDN-URL's worden ook via de proxy herschreven, zodat foto's
+    // CORS-schoon blijven voor canvas-export. Andere absolute URL's (onverwacht)
+    // worden ongewijzigd gelaten.
+    const withoutCdnOrigin = path.replace(/^https?:\/\/weglidefiles\.b-cdn\.net\//i, "");
+    if (/^https?:\/\//i.test(withoutCdnOrigin)) return withoutCdnOrigin;
+    return CDN_PREFIX + withoutCdnOrigin;
   }
 
   function authHeaders(apiKey) {

@@ -13,9 +13,9 @@ build-stap, geen dependencies.
    link gehaald.
 3. De **WeGlide API-key** is **optioneel**. Zonder key werkt de tool prima voor
    openbare vluchten. Met een key krijg je een hogere rate limit en kun je ook je
-   eigen prive vluchten ophalen. De key wordt uitsluitend gebruikt als
-   `X-API-Key`-header op requests naar `api.weglide.org` en nergens anders
-   naartoe gestuurd.
+   eigen prive vluchten ophalen. De key wordt uitsluitend als `X-API-Key`-header
+   meegestuurd (via de CORS-proxy, zie hieronder) naar `api.weglide.org` en
+   nergens anders naartoe gestuurd.
 4. Kies een resolutie (1920×1080, 2560×1440, 3840×2160 of 1080×1920 voor mobiel).
 5. Klik op **"Wallpaper genereren"**. De tool haalt de vluchtgegevens, de route
    (via het IGC-bestand) en eventuele foto's op, en tekent alles op een canvas.
@@ -41,10 +41,30 @@ subtiele gradient-achtergrond in plaats van een lege pagina.
 Zie de officiële developer-documentatie:
 [docs.weglide.org/creators/developers.html](https://docs.weglide.org/creators/developers.html)
 
+## CORS-proxy
+
+`api.weglide.org` en de CDN (`weglidefiles.b-cdn.net`) sturen geen
+CORS-headers mee, waardoor browsers directe `fetch()`-calls vanaf een
+`github.io`-origin blokkeren (`Failed to fetch`). Daarom staat er een kleine
+Cloudflare Worker tussen: [`cors-proxy/worker.js`](cors-proxy/worker.js).
+
+Deze Worker doet niets anders dan requests doorsturen naar **uitsluitend**
+`api.weglide.org` (pad `/api/...`) en `weglidefiles.b-cdn.net` (pad
+`/cdn/...`), de optionele `X-API-Key`-header meegeven, en de CORS-headers
+toevoegen die de browser vereist. `index.html` verwijst naar de gedeployde
+Worker via de `PROXY_BASE`-constante bovenin het `<script>`-blok.
+
+Zelf (opnieuw) deployen (gratis, geen CLI nodig):
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** →
+   **Create application** → **Start with Hello World!**
+2. **Edit code**, plak de inhoud van `cors-proxy/worker.js`, **Deploy**.
+3. Zet de resulterende `*.workers.dev`-URL in `PROXY_BASE` in `index.html`.
+
 ## Bekende beperking
 
-Foto's komen van een CDN (`weglidefiles.b-cdn.net`). Als die CDN geen
-CORS-headers meestuurt, kan de PNG-export (`canvas.toBlob`) mislukken met een
-`SecurityError`, ook al toont de preview de foto's gewoon. De tool vangt dit op
-met een duidelijke foutmelding en het advies om in dat geval een schermafbeelding
-van de preview te maken.
+Zonder de CORS-proxy hierboven kan de PNG-export (`canvas.toBlob`) mislukken
+met een `SecurityError` doordat foto's van de CDN de canvas "tainten", ook al
+toont de preview de foto's gewoon. De tool vangt dit op met een duidelijke
+foutmelding en het advies om in dat geval een schermafbeelding van de preview
+te maken. Met de proxy (die alles van `Access-Control-Allow-Origin: *`
+voorziet) zou dit niet meer moeten optreden.
