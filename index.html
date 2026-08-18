@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeGlide Vlucht Wallpaper</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #141d30;
+    --panel-border: #253048;
+    --text: #eef2f9;
+    --muted: #9aa7c2;
+    --accent: #ffd23f;
+    --accent-2: #3ddc84;
+    --danger: #ff6b6b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(160deg, #0b1220, #0f1b30 60%, #0b1220);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 28px 20px 8px;
+    text-align: center;
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: 1.6rem;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  label:first-child { margin-top: 0; }
+  input[type="text"], input[type="password"], select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0d1626;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  button#generateBtn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #16202f;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button#generateBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  button#downloadBtn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid var(--accent-2);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent-2);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button#downloadBtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  #status {
+    margin-top: 14px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    min-height: 1.2em;
+  }
+  #status.error { color: var(--danger); }
+  #status.ok { color: var(--accent-2); }
+  #status.info { color: var(--muted); }
+  .preview-wrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+  #outputCanvas {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 6px;
+    display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .placeholder {
+    color: var(--muted);
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 40px 20px;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 30px 20px 40px;
+  }
+  footer a { color: var(--accent-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🪂 WeGlide Vlucht Wallpaper</h1>
+  <p>Maak een wallpaper met foto's en vluchtroute van een WeGlide-vlucht</p>
+</header>
+
+<div class="layout">
+  <div class="panel">
+    <label for="apiKey">WeGlide API-key (optioneel)</label>
+    <input type="password" id="apiKey" placeholder="Alleen nodig voor hogere rate limit of eigen prive vluchten">
+    <div class="hint">Zonder key werkt de tool ook, voor openbare vluchten.</div>
+
+    <label for="flightInput">Vlucht-ID of WeGlide-link</label>
+    <input type="text" id="flightInput" placeholder="bv. 2874213 of https://www.weglide.org/flight/2874213">
+
+    <label for="resolution">Resolutie</label>
+    <select id="resolution">
+      <option value="1920x1080">1920 × 1080 (Full HD, breed)</option>
+      <option value="2560x1440">2560 × 1440 (QHD, breed)</option>
+      <option value="3840x2160">3840 × 2160 (4K, breed)</option>
+      <option value="1080x1920">1080 × 1920 (staand, mobiel)</option>
+    </select>
+
+    <button id="generateBtn">Wallpaper genereren</button>
+    <button id="downloadBtn" disabled>Downloaden als PNG</button>
+
+    <div id="status"></div>
+  </div>
+
+  <div class="preview-wrap">
+    <canvas id="outputCanvas"></canvas>
+    <div class="placeholder" id="placeholder">Vul een vlucht-ID of link in en klik op "Wallpaper genereren" om een voorbeeld te zien.</div>
+  </div>
+</div>
+
+<footer>
+  Data via <a href="https://api.weglide.org" target="_blank" rel="noopener">api.weglide.org</a> ·
+  Achtergrond over de API: <a href="https://docs.weglide.org/creators/developers.html" target="_blank" rel="noopener">docs.weglide.org/creators/developers.html</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const CDN_PREFIX = "https://weglidefiles.b-cdn.net/";
+  const API_BASE = "https://api.weglide.org/v1";
+
+  const apiKeyInput = document.getElementById("apiKey");
+  const flightInput = document.getElementById("flightInput");
+  const resolutionSelect = document.getElementById("resolution");
+  const generateBtn = document.getElementById("generateBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const statusEl = document.getElementById("status");
+  const canvas = document.getElementById("outputCanvas");
+  const placeholder = document.getElementById("placeholder");
+  const ctx = canvas.getContext("2d");
+
+  let currentFlightId = null;
+
+  function setStatus(message, kind) {
+    statusEl.textContent = message || "";
+    statusEl.className = kind ? kind : "";
+  }
+
+  function extractFlightId(raw) {
+    const trimmed = (raw || "").trim();
+    if (!trimmed) return null;
+    const linkMatch = trimmed.match(/flight\/(\d+)/);
+    if (linkMatch) return linkMatch[1];
+    const numMatch = trimmed.match(/(\d+)/);
+    return numMatch ? numMatch[1] : null;
+  }
+
+  function resolveCdnUrl(path) {
+    if (!path) return null;
+    return /^https?:\/\//i.test(path) ? path : CDN_PREFIX + path;
+  }
+
+  function authHeaders(apiKey) {
+    return apiKey ? { "X-API-Key": apiKey } : {};
+  }
+
+  async function fetchFlightDetail(id, apiKey) {
+    const res = await fetch(`${API_BASE}/flightdetail/${id}`, { headers: authHeaders(apiKey) });
+    if (!res.ok) {
+      throw new Error(`Vluchtgegevens ophalen mislukt (status ${res.status}). Klopt het vlucht-ID en, indien opgegeven, de API-key?`);
+    }
+    return res.json();
+  }
+
+  async function fetchStoryPhotos(id, apiKey) {
+    try {
+      const res = await fetch(`${API_BASE}/story/${id}`, { headers: authHeaders(apiKey) });
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data
+        .filter((item) => item && item.image)
+        .sort((a, b) => (a.time_offset ?? 0) - (b.time_offset ?? 0))
+        .map((item) => resolveCdnUrl(item.image))
+        .filter(Boolean);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function parseIgc(text) {
+    const points = [];
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      if (line.charAt(0) !== "B" || line.length < 35) continue;
+      const latDeg = parseInt(line.slice(7, 9), 10);
+      const latMin = parseInt(line.slice(9, 11), 10);
+      const latMinDec = parseInt(line.slice(11, 14), 10);
+      const latDir = line.charAt(14);
+      const lonDeg = parseInt(line.slice(15, 18), 10);
+      const lonMin = parseInt(line.slice(18, 20), 10);
+      const lonMinDec = parseInt(line.slice(20, 23), 10);
+      const lonDir = line.charAt(23);
+      const pressAlt = parseInt(line.slice(25, 30), 10);
+      const gpsAlt = parseInt(line.slice(30, 35), 10);
+
+      if ([latDeg, latMin, latMinDec, lonDeg, lonMin, lonMinDec].some(Number.isNaN)) continue;
+
+      let lat = latDeg + (latMin + latMinDec / 1000) / 60;
+      if (latDir === "S") lat = -lat;
+      let lon = lonDeg + (lonMin + lonMinDec / 1000) / 60;
+      if (lonDir === "W") lon = -lon;
+      const alt = !Number.isNaN(gpsAlt) ? gpsAlt : pressAlt;
+
+      points.push({ lat, lon, alt: Number.isNaN(alt) ? null : alt });
+    }
+    return points;
+  }
+
+  async function fetchTrack(igcPath) {
+    const url = resolveCdnUrl(igcPath);
+    if (!url) return [];
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`IGC-bestand ophalen mislukt (status ${res.status}).`);
+    const text = await res.text();
+    return parseIgc(text);
+  }
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Foto laden mislukt: " + url));
+      img.src = url;
+    });
+  }
+
+  function pickSamples(urls, max) {
+    if (urls.length <= max) return urls.slice();
+    const result = [];
+    for (let i = 0; i < max; i++) {
+      const idx = Math.round((i * (urls.length - 1)) / (max - 1));
+      result.push(urls[idx]);
+    }
+    return result;
+  }
+
+  function layoutRects(n, W, H) {
+    if (n <= 1) return [[0, 0, W, H]];
+    if (n === 2) {
+      const w = W / 2;
+      return [[0, 0, w, H], [w, 0, w, H]];
+    }
+    if (n === 3) {
+      const bigW = Math.round(W * 0.6);
+      const smallW = W - bigW;
+      const smallH = H / 2;
+      return [[0, 0, bigW, H], [bigW, 0, smallW, smallH], [bigW, smallH, smallW, smallH]];
+    }
+    if (n === 4) {
+      const w = W / 2, h = H / 2;
+      return [[0, 0, w, h], [w, 0, w, h], [0, h, w, h], [w, h, w, h]];
+    }
+    const cols = 3, rows = 2;
+    const w = W / cols, h = H / rows;
+    const rects = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        rects.push([c * w, r * h, w, h]);
+      }
+    }
+    return rects.slice(0, n);
+  }
+
+  function drawCover(context, img, x, y, w, h) {
+    const ir = img.width / img.height;
+    const r = w / h;
+    let sx, sy, sw, sh;
+    if (ir > r) {
+      sh = img.height;
+      sw = sh * r;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.width;
+      sh = sw / r;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+    context.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function drawGradientBackground(context, W, H) {
+    const g = context.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#1e3a5f");
+    g.addColorStop(0.5, "#16233d");
+    g.addColorStop(1, "#0b1220");
+    context.fillStyle = g;
+    context.fillRect(0, 0, W, H);
+  }
+
+  function drawScrim(context, W, H) {
+    const scrimHeight = H * 0.34;
+    const g = context.createLinearGradient(0, H - scrimHeight, 0, H);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(0,0,0,0.78)");
+    context.fillStyle = g;
+    context.fillRect(0, H - scrimHeight, W, scrimHeight);
+  }
+
+  function roundRect(context, x, y, w, h, r) {
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.arcTo(x + w, y, x + w, y + h, r);
+    context.arcTo(x + w, y + h, x, y + h, r);
+    context.arcTo(x, y + h, x, y, r);
+    context.arcTo(x, y, x + w, y, r);
+    context.closePath();
+  }
+
+  function drawRouteMap(context, track, x, y, size) {
+    roundRect(context, x, y, size, size, size * 0.06);
+    context.fillStyle = "rgba(8,14,24,0.6)";
+    context.fill();
+    context.strokeStyle = "rgba(255,255,255,0.15)";
+    context.lineWidth = 1;
+    context.stroke();
+
+    if (!track || track.length < 2) return;
+
+    const pad = size * 0.14;
+    const innerSize = size - pad * 2;
+
+    const lats = track.map((p) => p.lat);
+    const lons = track.map((p) => p.lon);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+    const avgLat = (minLat + maxLat) / 2;
+    const cosLat = Math.cos((avgLat * Math.PI) / 180) || 1;
+
+    const lonRange = Math.max((maxLon - minLon) * cosLat, 1e-6);
+    const latRange = Math.max(maxLat - minLat, 1e-6);
+    const scale = Math.min(innerSize / lonRange, innerSize / latRange);
+
+    const usedW = lonRange * scale;
+    const usedH = latRange * scale;
+    const offsetX = x + pad + (innerSize - usedW) / 2;
+    const offsetY = y + pad + (innerSize - usedH) / 2;
+
+    function project(p) {
+      const px = offsetX + (p.lon - minLon) * cosLat * scale;
+      const py = offsetY + usedH - (p.lat - minLat) * scale;
+      return [px, py];
+    }
+
+    context.beginPath();
+    track.forEach((p, i) => {
+      const [px, py] = project(p);
+      if (i === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    });
+    context.strokeStyle = "#ffd23f";
+    context.lineWidth = Math.max(1.5, size * 0.012);
+    context.lineJoin = "round";
+    context.lineCap = "round";
+    context.stroke();
+
+    const [sx, sy] = project(track[0]);
+    const [ex, ey] = project(track[track.length - 1]);
+    const r = Math.max(3, size * 0.03);
+
+    context.fillStyle = "#3ddc84";
+    context.beginPath();
+    context.arc(sx, sy, r, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = "#ff4d4d";
+    context.beginPath();
+    context.arc(ex, ey, r, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  function formatDuration(totalSeconds) {
+    if (!totalSeconds && totalSeconds !== 0) return "";
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    return `${h}u ${m}m`;
+  }
+
+  function formatDate(isoString) {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function drawInfoBar(context, W, H, flight, textX) {
+    const pilot = (flight.user && flight.user.name) || "Onbekende piloot";
+    const aircraft = (flight.aircraft && flight.aircraft.name) || "";
+    const date = formatDate(flight.takeoff_time);
+    const duration = formatDuration(flight.total_seconds);
+
+    const titleY = H - H * 0.11;
+    const subY = titleY + W * 0.032;
+
+    context.textBaseline = "alphabetic";
+    context.shadowColor = "rgba(0,0,0,0.7)";
+    context.shadowBlur = 10;
+
+    context.fillStyle = "#ffffff";
+    context.font = `700 ${Math.round(W * 0.028)}px system-ui, -apple-system, sans-serif`;
+    const titleLine = aircraft ? `${pilot} · ${aircraft}` : pilot;
+    context.fillText(titleLine, textX, titleY);
+
+    context.fillStyle = "rgba(255,255,255,0.85)";
+    context.font = `400 ${Math.round(W * 0.016)}px system-ui, -apple-system, sans-serif`;
+    const subLine = [date, duration].filter(Boolean).join("   ·   ");
+    context.fillText(subLine, textX, subY);
+
+    context.shadowBlur = 0;
+  }
+
+  async function generateWallpaper() {
+    const apiKey = apiKeyInput.value.trim();
+    const flightId = extractFlightId(flightInput.value);
+    const [W, H] = resolutionSelect.value.split("x").map(Number);
+
+    if (!flightId) {
+      setStatus("Vul een geldig vlucht-ID of een WeGlide-link in.", "error");
+      return;
+    }
+
+    generateBtn.disabled = true;
+    downloadBtn.disabled = true;
+    setStatus("Vluchtgegevens ophalen...", "info");
+
+    try {
+      const flight = await fetchFlightDetail(flightId, apiKey);
+
+      setStatus("Route (IGC-bestand) ophalen...", "info");
+      let track = [];
+      const igcPath = flight.igc_file && flight.igc_file.file;
+      if (igcPath) {
+        try {
+          track = await fetchTrack(igcPath);
+        } catch (e) {
+          track = [];
+        }
+      }
+
+      setStatus("Foto's ophalen...", "info");
+      const photoUrls = await fetchStoryPhotos(flightId, apiKey);
+      const sampleUrls = pickSamples(photoUrls, 6);
+
+      let images = [];
+      if (sampleUrls.length > 0) {
+        setStatus("Foto's laden...", "info");
+        const results = await Promise.all(sampleUrls.map((u) => loadImage(u).catch(() => null)));
+        images = results.filter(Boolean);
+      }
+
+      canvas.width = W;
+      canvas.height = H;
+
+      if (images.length > 0) {
+        const rects = layoutRects(images.length, W, H);
+        images.forEach((img, i) => {
+          const [x, y, w, h] = rects[i];
+          drawCover(ctx, img, x, y, w, h);
+        });
+      } else {
+        drawGradientBackground(ctx, W, H);
+      }
+
+      drawScrim(ctx, W, H);
+
+      const pad = W * 0.035;
+      const mapSize = H * 0.24;
+      const mapX = pad;
+      const mapY = H - mapSize - pad;
+      drawRouteMap(ctx, track, mapX, mapY, mapSize);
+
+      drawInfoBar(ctx, W, H, flight, mapX + mapSize + pad);
+
+      canvas.style.display = "block";
+      placeholder.style.display = "none";
+      currentFlightId = flightId;
+      downloadBtn.disabled = false;
+
+      const notes = [];
+      if (images.length === 0) notes.push("geen foto's gevonden, gradient-achtergrond gebruikt");
+      if (track.length === 0) notes.push("geen route gevonden");
+      setStatus(notes.length ? `Wallpaper gegenereerd (${notes.join(", ")}).` : "Wallpaper gegenereerd.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || "Er ging iets mis bij het ophalen van de vluchtgegevens.", "error");
+    } finally {
+      generateBtn.disabled = false;
+    }
+  }
+
+  function downloadWallpaper() {
+    const corsMessage =
+      "Downloaden mislukt: de afbeelding kon niet worden geëxporteerd, waarschijnlijk door een CORS-beperking van de foto-CDN. " +
+      "Maak in plaats daarvan een schermafbeelding van de preview hierboven.";
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          setStatus(corsMessage, "error");
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `weglide-wallpaper-${currentFlightId || "vlucht"}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    } catch (err) {
+      console.error(err);
+      setStatus(corsMessage, "error");
+    }
+  }
+
+  generateBtn.addEventListener("click", generateWallpaper);
+  downloadBtn.addEventListener("click", downloadWallpaper);
+  flightInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") generateWallpaper();
+  });
+})();
+</script>
+
+</body>
+</html>
