@@ -18,6 +18,12 @@ export default {
     const forwardHeaders = new Headers();
     const apiKey = request.headers.get("X-API-Key");
     if (apiKey) forwardHeaders.set("X-API-Key", apiKey);
+    // Bunny CDN (en mogelijk de API) passen referrer/hotlink-bescherming toe
+    // die alleen requests met een Referer/Origin van de WeGlide-site zelf
+    // doorlaat. Deze proxy staat in voor die site, dus stuurt dezelfde
+    // headers mee.
+    forwardHeaders.set("Referer", "https://www.weglide.org/");
+    forwardHeaders.set("Origin", "https://www.weglide.org");
 
     const upstreamResponse = await fetch(targetUrl, {
       method: "GET",
