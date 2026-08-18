@@ -196,7 +196,7 @@
 <footer>
   Data via <a href="https://api.weglide.org" target="_blank" rel="noopener">api.weglide.org</a> ·
   Achtergrond over de API: <a href="https://docs.weglide.org/creators/developers.html" target="_blank" rel="noopener">docs.weglide.org/creators/developers.html</a>
-  <div id="releaseInfo">Laatste release: 2026-08-18 14:11 UTC</div>
+  <div id="releaseInfo">Laatste release: 2026-08-18 14:21 UTC</div>
 </footer>
 
 <script>
@@ -311,10 +311,10 @@
     return points;
   }
 
-  async function fetchTrack(igcPath) {
+  async function fetchTrack(igcPath, apiKey) {
     const url = resolveCdnUrl(igcPath);
     if (!url) return [];
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: authHeaders(apiKey) });
     if (!res.ok) throw new Error(`IGC-bestand ophalen mislukt (status ${res.status}).`);
     const text = await res.text();
     return parseIgc(text);
@@ -541,7 +541,7 @@
         (typeof flight.igc_file === "string" ? flight.igc_file : null);
       if (igcPath) {
         try {
-          track = await fetchTrack(igcPath);
+          track = await fetchTrack(igcPath, apiKey);
           if (track.length === 0) {
             console.warn("IGC-bestand opgehaald maar geen B-records gevonden erin.");
           }
