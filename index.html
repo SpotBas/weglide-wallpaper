@@ -196,7 +196,7 @@
 <footer>
   Data via <a href="https://api.weglide.org" target="_blank" rel="noopener">api.weglide.org</a> ·
   Achtergrond over de API: <a href="https://docs.weglide.org/creators/developers.html" target="_blank" rel="noopener">docs.weglide.org/creators/developers.html</a>
-  <div id="releaseInfo">Laatste release: 2026-08-18 13:56 UTC</div>
+  <div id="releaseInfo">Laatste release: 2026-08-18 14:11 UTC</div>
 </footer>
 
 <script>
@@ -239,12 +239,19 @@
 
   function resolveCdnUrl(path) {
     if (!path) return null;
-    // Absolute CDN-URL's worden ook via de proxy herschreven, zodat foto's
-    // CORS-schoon blijven voor canvas-export. Andere absolute URL's (onverwacht)
-    // worden ongewijzigd gelaten.
-    const withoutCdnOrigin = path.replace(/^https?:\/\/weglidefiles\.b-cdn\.net\//i, "");
-    if (/^https?:\/\//i.test(withoutCdnOrigin)) return withoutCdnOrigin;
-    return CDN_PREFIX + withoutCdnOrigin;
+    // Altijd via de proxy laten lopen: zowel relatieve paden als absolute
+    // CDN-URL's (waarvan we alleen het pad + query overnemen). Zo blijven
+    // ook foto's CORS-schoon voor canvas-export, en werkt dit ongeacht de
+    // exacte host die de API teruggeeft.
+    if (/^https?:\/\//i.test(path)) {
+      try {
+        const u = new URL(path);
+        return CDN_PREFIX + u.pathname.replace(/^\/+/, "") + u.search;
+      } catch (e) {
+        return path;
+      }
+    }
+    return CDN_PREFIX + path.replace(/^\/+/, "");
   }
 
   function authHeaders(apiKey) {
@@ -524,16 +531,26 @@
 
     try {
       const flight = await fetchFlightDetail(flightId, apiKey);
+      console.log("WeGlide vluchtgegevens (voor debug):", flight);
 
       setStatus("Route (IGC-bestand) ophalen...", "info");
       let track = [];
-      const igcPath = flight.igc_file && flight.igc_file.file;
+      const igcPath =
+        (flight.igc_file && (flight.igc_file.file || flight.igc_file.url)) ||
+        flight.igc_url ||
+        (typeof flight.igc_file === "string" ? flight.igc_file : null);
       if (igcPath) {
         try {
           track = await fetchTrack(igcPath);
+          if (track.length === 0) {
+            console.warn("IGC-bestand opgehaald maar geen B-records gevonden erin.");
+          }
         } catch (e) {
+          console.error("Route (IGC-bestand) ophalen mislukt:", e);
           track = [];
         }
+      } else {
+        console.warn("Geen igc_file/igc_url veld gevonden in vluchtgegevens, zie object hierboven.");
       }
 
       setStatus("Foto's ophalen...", "info");
